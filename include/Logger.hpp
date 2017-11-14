@@ -1,0 +1,42 @@
+//
+// Created by jimwang on 2017/11/11.
+//
+
+#ifndef CAMERASERVER_LOGGER_HPP
+#define CAMERASERVER_LOGGER_HPP
+
+#include <unistd.h>
+
+#include "log4cpp/Category.hh"
+#include "log4cpp/FileAppender.hh"
+#include "log4cpp/PatternLayout.hh"
+
+
+#define LOG(__level)  log4cpp::Category::getRoot() << log4cpp::Priority::__level << __FILE__ << ":" << __LINE__ << "\n\t"
+
+inline void initLogger(int verbose)
+{
+    // initialize log4cpp
+    log4cpp::Category &log = log4cpp::Category::getRoot();
+    log4cpp::Appender *app = new log4cpp::FileAppender("root", fileno(stdout));
+    if (app)
+    {
+        log4cpp::PatternLayout *plt = new log4cpp::PatternLayout();
+        if (plt)
+        {
+            plt->setConversionPattern("%d [%-6p] - %m%n");
+            app->setLayout(plt);
+        }
+        log.addAppender(app);
+    }
+    switch (verbose)
+    {
+        case 2: log.setPriority(log4cpp::Priority::DEBUG); break;
+        case 1: log.setPriority(log4cpp::Priority::INFO); break;
+        default: log.setPriority(log4cpp::Priority::NOTICE); break;
+
+    }
+    LOG(INFO) << "level:" << log4cpp::Priority::getPriorityName(log.getPriority());
+}
+
+#endif //CAMERASERVER_LOGGER_HPP
