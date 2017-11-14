@@ -297,7 +297,7 @@ int CameraDevice::Create(const char* format, const char* device,
     m_codecContextH26X->gop_size = 1; /* emit one intra frame every ten frames */
     m_codecContextH26X->max_b_frames = 0;
     m_codecContextH26X->pix_fmt = AV_PIX_FMT_YUV420P;
-    av_opt_set(m_codecContextH26X->priv_data, "x265-params", "qp=20", 0);
+    //av_opt_set(m_codecContextH26X->priv_data, "x265-params", "qp=20", 0);
     av_opt_set(m_codecContextH26X->priv_data, "preset", "ultrafast", 0);
     av_opt_set(m_codecContextH26X->priv_data, "tune", "zerolatency", 0);
 #else

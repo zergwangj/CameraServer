@@ -20,7 +20,7 @@ set(SOURCE_FILES CameraServer.cpp include/CameraDevice.hpp src/CameraDevice.cpp
         include/CameraServerMediaSubsession.hpp src/CameraServerMediaSubsession.cpp
         include/Logger.hpp)
 
-#add_definitions(-DENCODE_H265)
+add_definitions(-DENCODE_H265)
 
 add_executable(CameraServer ${SOURCE_FILES})
 
