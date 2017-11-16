@@ -147,7 +147,7 @@ int CameraDevice::Create(const char* format, const char* device,
     int videoIndex = -1;
     for (int i = 0; i < m_formatContext->nb_streams; i++)
     {
-        if (m_formatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+        if (m_formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
             videoIndex = i;
             break;
@@ -159,13 +159,28 @@ int CameraDevice::Create(const char* format, const char* device,
         return -1;
     }
 
-    m_codecContextRaw = m_formatContext->streams[videoIndex]->codec;
+//    m_codecContextRaw = m_formatContext->streams[videoIndex]->codec;
+    m_codecContextRaw = avcodec_alloc_context3(NULL);
+    if (m_codecContextRaw == NULL)
+    {
+        LOG(ERROR) << "Cannot alloc decoder context";
+        return -1;
+    }
+    if (avcodec_parameters_to_context(m_codecContextRaw, m_formatContext->streams[videoIndex]->codecpar) < 0)
+    {
+        LOG(ERROR) << "Cannot convert param to context";
+        return -1;
+    }
+    LOG(INFO) << m_formatContext->streams[videoIndex]->time_base.num << " / " << m_formatContext->streams[videoIndex]->time_base.den;
+    //av_codec_set_pkt_timebase(m_codecContextRaw, m_formatContext->streams[videoIndex]->time_base);
+    m_codecContextRaw->time_base = m_formatContext->streams[videoIndex]->time_base;
     m_codecRaw = avcodec_find_decoder(m_codecContextRaw->codec_id);
     if (!m_codecRaw)
     {
         LOG(ERROR) << "Cannot find decoder";
         return -1;
     }
+
     if (avcodec_open2(m_codecContextRaw, m_codecRaw, NULL) < 0)
     {
         LOG(ERROR) << "Cannot open raw codec context";
@@ -181,6 +196,7 @@ int CameraDevice::Create(const char* format, const char* device,
         LOG(ERROR) << "Cannot alloc frame";
         return -1;
     }
+
     if ((avpicture_alloc((AVPicture*)m_frameYuyv422, AV_PIX_FMT_YUYV422, width, height) < 0)
         || (avpicture_alloc((AVPicture*)m_frameYuyv422PlusDate, AV_PIX_FMT_YUYV422, width, height) < 0)
         || (avpicture_alloc((AVPicture*)m_frameYuv420p, AV_PIX_FMT_YUV420P, width, height) < 0))
@@ -198,7 +214,7 @@ int CameraDevice::Create(const char* format, const char* device,
     }
 
     m_filterSrc = avfilter_get_by_name("buffer");
-    m_filterSink = avfilter_get_by_name("ffbuffersink");
+    m_filterSink = avfilter_get_by_name("buffersink");
     if (!m_filterSrc || !m_filterSink)
     {
         LOG(ERROR) << "Cannot get filter";
@@ -223,7 +239,7 @@ int CameraDevice::Create(const char* format, const char* device,
     if ((avfilter_graph_create_filter(&m_filterContextSrc, m_filterSrc, "in", args, NULL, m_filterGraph) < 0)
         || (avfilter_graph_create_filter(&m_filterContextSink, m_filterSink, "out", NULL, NULL, m_filterGraph) < 0))
     {
-        LOG(ERROR) << "Cannot alloc filter inout";
+        LOG(ERROR) << "Cannot create filter";
         return -1;
     }
 
@@ -334,10 +350,11 @@ void CameraDevice::Close()
         avfilter_graph_free(&m_filterGraph);
         avcodec_close(m_codecContextRaw);
         avcodec_close(m_codecContextH26X);
-        av_free_packet(m_packetRaw);
-        av_free_packet(m_packetH26X);
+        av_packet_free(&m_packetRaw);
+        av_packet_free(&m_packetH26X);
         av_frame_free(&m_frameYuv420p);
         av_frame_free(&m_frameYuyv422);
+        av_frame_free(&m_frameYuyv422PlusDate);
         avformat_close_input(&m_formatContext);
         avformat_free_context(m_formatContext);
     }
@@ -360,15 +377,20 @@ int CameraDevice::Read(char *buffer, size_t bufferSize, size_t* truncatedSize)
     }
 
     // Decode data to frame yuyv422
-    int got_frame = 0;
-    if (avcodec_decode_video2(m_codecContextRaw, m_frameYuyv422, &got_frame, m_packetRaw) < 0)
+//    int got_frame = 0;
+//    if (avcodec_decode_video2(m_codecContextRaw, m_frameYuyv422, &got_frame, m_packetRaw) < 0)
+//    {
+//        LOG(ERROR) << "Cannot decode video";
+//        return -1;
+//    }
+    if (avcodec_send_packet(m_codecContextRaw, m_packetRaw) < 0)
     {
-        LOG(ERROR) << "Cannot decode video";
+        LOG(ERROR) << "Cannot send packet to decode context";
         return -1;
     }
-    if (!got_frame)
+    if (avcodec_receive_frame(m_codecContextRaw, m_frameYuyv422) < 0)
     {
-        LOG(ERROR) << "Cannot get frame";
+        LOG(ERROR) << "Cannot receive frame from decode context";
         return -1;
     }
 
@@ -397,18 +419,27 @@ int CameraDevice::Read(char *buffer, size_t bufferSize, size_t* truncatedSize)
     m_frameYuv420p->format = AV_PIX_FMT_YUV420P;
     m_frameYuv420p->width = m_codecContextH26X->width;
     m_frameYuv420p->height = m_codecContextH26X->height;
-    int got_packet = 0;
     memset(m_packetH26X, 0, sizeof(AVPacket));
     av_init_packet(m_packetH26X);
-    if (avcodec_encode_video2(m_codecContextH26X, m_packetH26X, m_frameYuv420p, &got_packet) < 0)
+//    int got_packet = 0;
+//    if (avcodec_encode_video2(m_codecContextH26X, m_packetH26X, m_frameYuv420p, &got_packet) < 0)
+//    {
+//        LOG(ERROR) << "Cannot encode h264 video";
+//        return -1;
+//    }
+//    if (!got_packet)
+//    {
+//        LOG(INFO) << "Cannot get h264 video packet";
+//        return -1;
+//    }
+    if (avcodec_send_frame(m_codecContextH26X, m_frameYuv420p) < 0)
     {
-        LOG(ERROR) << "Cannot encode h264 video";
+        LOG(ERROR) << "Cannot send frame to encode context";
         return -1;
     }
-
-    if (!got_packet)
+    if (avcodec_receive_packet(m_codecContextH26X, m_packetH26X) < 0)
     {
-        LOG(INFO) << "Cannot get h264 video packet";
+        LOG(ERROR) << "Cannot receive packet from encode context";
         return -1;
     }
 
