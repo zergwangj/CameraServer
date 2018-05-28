@@ -22,23 +22,25 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #define CAMERA_SERVER_VERSION_STRING        "0.1"
 
+#ifdef WIN32
+#define VIDEO_INPUT_FORMAT      "dshow"
+#define VIDEO_DEVICE            "video=USB Camera"
+#elif __APPLE__
 #define VIDEO_INPUT_FORMAT      "avfoundation"
 #define VIDEO_DEVICE            "0"
+#endif
 #define VIDEO_WIDTH             640
 #define VIDEO_HEIGTH            480
 #define VIDEO_FRAME_PER_SEC     30
 
-int main(int argc, char** argv)
-{
-    initLogger(1);
-
+int main(int argc, char **argv) {
     OutPacketBuffer::maxSize = (1024 * 1024);
 
     // Begin by setting up our usage environment:
-    TaskScheduler* scheduler = BasicTaskScheduler::createNew();
-    UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
+    TaskScheduler *scheduler = BasicTaskScheduler::createNew();
+    UsageEnvironment *env = BasicUsageEnvironment::createNew(*scheduler);
 
-    UserAuthenticationDatabase* authDB = NULL;
+    UserAuthenticationDatabase *authDB = NULL;
 #ifdef ACCESS_CONTROL
     // To implement client access control to the RTSP server, do the following:
     authDB = new UserAuthenticationDatabase;
@@ -49,29 +51,29 @@ int main(int argc, char** argv)
 
     // Create the RTSP server.  Try first with the default port number (554),
     // and then with the alternative port number (8554):
-    RTSPServer* rtspServer;
+    RTSPServer *rtspServer;
     portNumBits rtspServerPortNum = 554;
     rtspServer = RTSPServer::createNew(*env, rtspServerPortNum, authDB);
-    if (rtspServer == NULL)
-    {
+    if (rtspServer == NULL) {
         rtspServerPortNum = 8554;
         rtspServer = RTSPServer::createNew(*env, rtspServerPortNum, authDB);
     }
-    if (rtspServer == NULL)
-    {
+    if (rtspServer == NULL) {
         *env << "Failed to create RTSP server: " << env->getResultMsg() << "\n";
         exit(1);
     }
 
-    *env << "Camera server version " << CAMERA_SERVER_VERSION_STRING << "\n";
+    *env << "CameraDevice server version " << CAMERA_SERVER_VERSION_STRING << "\n";
 
     ServerMediaSession *sms = ServerMediaSession::createNew(*env,
-                                                            "webcam", 0, "Camera server, streamed by the LIVE555 Media Server");
+                                                            "webcam", 0,
+                                                            "CameraDevice server, streamed by the LIVE555 Media Server");
     sms->addSubsession(CameraServerMediaSubsession::createNew(*env, VIDEO_INPUT_FORMAT,
-                                                                VIDEO_DEVICE, VIDEO_WIDTH, VIDEO_HEIGTH, VIDEO_FRAME_PER_SEC));
+                                                              VIDEO_DEVICE, VIDEO_WIDTH, VIDEO_HEIGTH,
+                                                              VIDEO_FRAME_PER_SEC));
     rtspServer->addServerMediaSession(sms);
 
-    char* url = rtspServer->rtspURL(sms);
+    char *url = rtspServer->rtspURL(sms);
     *env << "Using url \"" << url << "\"\n";
     delete[] url;
 

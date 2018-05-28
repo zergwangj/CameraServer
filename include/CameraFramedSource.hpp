@@ -13,31 +13,50 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#ifndef _CAMERA_FRAMED_SOURCE_HPP
-#define _CAMERA_FRAMED_SOURCE_HPP
+
+#ifndef __CAMERA_FRAMED_SOURCE_HPP__
+#define __CAMERA_FRAMED_SOURCE_HPP__
 
 #include <liveMedia.hh>
+#include <queue>
+#include <boost/pool/object_pool.hpp>
 #include "CameraDevice.hpp"
 
-class CameraFramedSource : public FramedSource
-{
-public:
-    static CameraFramedSource* createNew(UsageEnvironment& env,
-                                           const char* format, const char* device, int width, int height, int fps);
+//#define MAX_FRAME_SIZE (100 * 1024)
+#define MAX_FRAME_SIZE 150000
 
-    static void getNextFrame(void* ptr);
+struct FrameBuffer {
+    char data[MAX_FRAME_SIZE];
+    int size;
+    int truncatedSize;
+};
+
+class CameraFramedSource : public FramedSource {
+public:
+    static CameraFramedSource *createNew(UsageEnvironment &env,
+                                         const char *format, const char *device, int width, int height, int fps);
+
+    static void getNextFrame(void *ptr);
+
     void getNextFrame1();
 
 protected:
-    CameraFramedSource(UsageEnvironment& env, CameraDevice* cameraDevice);
+    CameraFramedSource(UsageEnvironment &env, CameraDevice *cameraDevice);
+
     ~CameraFramedSource();
 
+    static void CameraCapture(void *param, void *packet, size_t bytes);
+
     virtual void doGetNextFrame();
-    virtual unsigned int maxFrameSize() const; 
+
+    virtual unsigned int maxFrameSize() const;
 
 private:
-    void* m_taskToken;
-    CameraDevice* m_cameraDevice;
+    void *taskToken_;
+    CameraDevice *cameraDevice_;
+    boost::object_pool<FrameBuffer> frameBufferPool_;
+    typedef std::queue<FrameBuffer *> FrameBufferQueue;
+    FrameBufferQueue frameBufferQueue_;
 };
 
-#endif
+#endif // __CAMERA_FRAMED_SOURCE_HPP__

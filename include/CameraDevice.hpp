@@ -13,8 +13,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#ifndef _CAMERA_DEVICE_HPP
-#define _CAMERA_DEVICE_HPP
+
+#ifndef __CAMERA_DEVICE_HPP__
+#define __CAMERA_DEVICE_HPP__
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,36 +33,38 @@ extern "C" {
 }
 #endif
 
-#include <string>
+typedef void (*CameraCallback)(void *param, void *packet, size_t bytes);
 
 class CameraDevice {
 public:
     CameraDevice();
+
     virtual ~CameraDevice();
 
-    int Create(const char* format, const char* device, int width, int height, int fps);
+    bool Create(void *param, CameraCallback callback,
+                const char *format, const char *device, int width, int height, int fps);
+
     void Close();
 
-    int Read(char* buffer, size_t bufferSize, size_t *truncatedSize);
-    bool IsReady() { return m_isReady; }
+    void Capture();
 
-protected:
-    AVFormatContext *m_formatContext;
-    AVInputFormat *m_inputFormat;
-    AVPacket *m_packetRaw, *m_packetH26X;
-    AVCodecContext *m_codecContextRaw, *m_codecContextH26X;
-    AVCodec *m_codecRaw, *m_codecH26X;
-    AVFrame *m_frameYuyv422, *m_frameYuyv422PlusDate, *m_frameYuv420p;
-    AVFilterGraph *m_filterGraph;
-    AVFilterContext *m_filterContextSrc;
-    AVFilterContext *m_filterContextSink;
-    AVFilter *m_filterSrc;
-    AVFilter *m_filterSink;
-    AVFilterInOut * m_filterInOutIn;
-    AVFilterInOut * m_filterInOutOut;
-    struct SwsContext* m_swsContext;
+    bool IsReady() { return isReady_; }
 
-    bool m_isReady;
+private:
+    void *param_;
+    CameraCallback callback_;
+
+    AVFormatContext *formatContext_;
+    AVPacket *packetRaw_, *packetH26X_;
+    AVCodecContext *codecContextRaw_, *codecContextH26X_;
+    AVFrame *frameYuyv422_, *frameYuyv422Watermark_, *frameYuv420p_;
+    AVFilterGraph *filterGraph_;
+    AVFilterContext *filterContextSrc_;
+    AVFilterContext *filterContextSink_;
+    struct SwsContext *swsContext_;
+
+    bool isReady_;
 };
 
-#endif //CAMERASERVER_CAMERADEVICE_HPP
+
+#endif // __CAMERA_DEVICE_HPP__

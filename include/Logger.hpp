@@ -1,42 +1,26 @@
-//
-// Created by jimwang on 2017/11/11.
-//
+/*
+This library is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation; either version 2.1 of the License, or (at your
+option) any later version. (See <http://www.gnu.org/copyleft/lesser.html>.)
 
-#ifndef CAMERASERVER_LOGGER_HPP
-#define CAMERASERVER_LOGGER_HPP
+This library is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+more details.
 
-#include <unistd.h>
+You should have received a copy of the GNU Lesser General Public License
+along with this library; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#include "log4cpp/Category.hh"
-#include "log4cpp/FileAppender.hh"
-#include "log4cpp/PatternLayout.hh"
+#ifndef __LOGGER_HPP__
+#define __LOGGER_HPP__
 
+#define BOOST_LOG_DYN_LINK
 
-#define LOG(__level)  log4cpp::Category::getRoot() << log4cpp::Priority::__level << __FILE__ << ":" << __LINE__ << "\n\t"
+#include <boost/log/trivial.hpp>
 
-inline void initLogger(int verbose)
-{
-    // initialize log4cpp
-    log4cpp::Category &log = log4cpp::Category::getRoot();
-    log4cpp::Appender *app = new log4cpp::FileAppender("root", fileno(stdout));
-    if (app)
-    {
-        log4cpp::PatternLayout *plt = new log4cpp::PatternLayout();
-        if (plt)
-        {
-            plt->setConversionPattern("%d [%-6p] - %m%n");
-            app->setLayout(plt);
-        }
-        log.addAppender(app);
-    }
-    switch (verbose)
-    {
-        case 2: log.setPriority(log4cpp::Priority::DEBUG); break;
-        case 1: log.setPriority(log4cpp::Priority::INFO); break;
-        default: log.setPriority(log4cpp::Priority::NOTICE); break;
+#define LOG(x) BOOST_LOG_TRIVIAL(x)
 
-    }
-    LOG(INFO) << "level:" << log4cpp::Priority::getPriorityName(log.getPriority());
-}
-
-#endif //CAMERASERVER_LOGGER_HPP
+#endif // __LOGGER_HPP__

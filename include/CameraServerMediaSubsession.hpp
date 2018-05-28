@@ -14,40 +14,43 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef _CAMERA_SERVER_MEDIA_SUBSESSION_HPP
-#define _CAMERA_SERVER_MEDIA_SUBSESSION_HPP
+#ifndef __CAMERA_SERVER_MEDIA_SUBSESSION_HPP__
+#define __CAMERA_SERVER_MEDIA_SUBSESSION_HPP__
 
 #include <liveMedia.hh>
 
-class CameraServerMediaSubsession : public OnDemandServerMediaSubsession
-{
+class CameraServerMediaSubsession : public OnDemandServerMediaSubsession {
 public:
-    static CameraServerMediaSubsession* createNew(UsageEnvironment& env, const char* format,
-    const char* device, int width, int height, int fps);
+    static CameraServerMediaSubsession *createNew(UsageEnvironment &env, const char *format,
+                                                  const char *device, int width, int height, int fps);
 
     void checkForAuxSDPLine1();
+
     void afterPlayingDummy1();
 
 protected:
-    CameraServerMediaSubsession(UsageEnvironment& env, const char* format,
-        const char* device, int width, int height, int fps);
+    CameraServerMediaSubsession(UsageEnvironment &env, const char *format,
+                                const char *device, int width, int height, int fps);
+
     ~CameraServerMediaSubsession();
 
     void setDoneFlag() { mDoneFlag = ~0; }
 
-    virtual char const* getAuxSDPLine(RTPSink* rtpSink,
-        FramedSource* inputSource);
-    virtual FramedSource* createNewStreamSource(unsigned clientSessionId,
-        unsigned& estBitrate);
+    virtual char const *getAuxSDPLine(RTPSink *rtpSink,
+                                      FramedSource *inputSource);
+
+    virtual FramedSource *createNewStreamSource(unsigned clientSessionId,
+                                                unsigned &estBitrate);
+
     // "estBitrate" is the stream's estimated bitrate, in kbps
-    virtual RTPSink* createNewRTPSink(Groupsock* rtpGroupsock,
-        unsigned char rtpPayloadTypeIfDynamic,
-        FramedSource* inputSource);
+    virtual RTPSink *createNewRTPSink(Groupsock *rtpGroupsock,
+                                      unsigned char rtpPayloadTypeIfDynamic,
+                                      FramedSource *inputSource);
 
 private:
-    char* mAuxSDPLine;
+    char *mAuxSDPLine;
     char mDoneFlag; // used when setting up "fAuxSDPLine"
-    RTPSink* mDummyRTPSink; // ditto
+    RTPSink *mDummyRTPSink; // ditto
     char *mFormat;
     char *mDevice;
     int mWidth;
@@ -55,4 +58,4 @@ private:
     int mFps;
 };
 
-#endif
+#endif // __CAMERA_SERVER_MEDIA_SUBSESSION_HPP__

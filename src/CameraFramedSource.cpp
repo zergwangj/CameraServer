@@ -20,77 +20,77 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 using namespace std;
 
-//#define MAX_FRAME_SIZE (100 * 1024)
-#define MAX_FRAME_SIZE 150000
-
-CameraFramedSource* CameraFramedSource::createNew(UsageEnvironment& env,
-                                                  const char* format, const char* device, int width, int height, int fps)
-{
-    CameraDevice* cameraDevice = new CameraDevice();
-    if (NULL == cameraDevice)
-    {
+CameraFramedSource *CameraFramedSource::createNew(UsageEnvironment &env,
+                                                  const char *format, const char *device, int width, int height,
+                                                  int fps) {
+    CameraDevice *cameraDevice = new CameraDevice();
+    if (NULL == cameraDevice) {
         return NULL;
     }
 
-    if (cameraDevice->Create(format, device, width, height, fps) != 0)
-    {
+    CameraFramedSource *newSource = new CameraFramedSource(env, cameraDevice);
+
+    if (!cameraDevice->Create(newSource, CameraFramedSource::CameraCapture, format, device, width, height, fps)) {
         delete cameraDevice;
+        delete newSource;
         return NULL;
     }
-
-    CameraFramedSource* newSource = new CameraFramedSource(env, cameraDevice);
 
     return newSource;
 }
 
-CameraFramedSource::CameraFramedSource(UsageEnvironment& env, CameraDevice* cameraDevice)
-    : FramedSource(env), m_cameraDevice(cameraDevice)
-{
+CameraFramedSource::CameraFramedSource(UsageEnvironment &env, CameraDevice *cameraDevice)
+        : FramedSource(env), cameraDevice_(cameraDevice) {
 }
 
-CameraFramedSource::~CameraFramedSource()
-{
-    delete m_cameraDevice;
-    envir().taskScheduler().unscheduleDelayedTask(m_taskToken);
+CameraFramedSource::~CameraFramedSource() {
+    delete cameraDevice_;
+    envir().taskScheduler().unscheduleDelayedTask(taskToken_);
 }
 
-void CameraFramedSource::doGetNextFrame()
-{
-    m_taskToken = envir().taskScheduler().scheduleDelayedTask(0,
-        getNextFrame, this);
+void CameraFramedSource::doGetNextFrame() {
+    taskToken_ = envir().taskScheduler().scheduleDelayedTask(0,
+                                                             getNextFrame, this);
 }
 
-void CameraFramedSource::getNextFrame(void* ptr)
-{  
-    ((CameraFramedSource*)ptr)->getNextFrame1();
-} 
+void CameraFramedSource::getNextFrame(void *ptr) {
+    ((CameraFramedSource *) ptr)->getNextFrame1();
+}
 
-void CameraFramedSource::getNextFrame1()
-{
-    int frameSize;
-    size_t truncatedSize;
-
-    char buf[MAX_FRAME_SIZE];
-
-    if ((frameSize = m_cameraDevice->Read(buf, MAX_FRAME_SIZE, &truncatedSize)) < 0)
-    {
-        LOG(ERROR) << "Cannot read h264 packet from device";
-        return;
+void CameraFramedSource::getNextFrame1() {
+    if (!frameBufferQueue_.empty()) {
+        FrameBuffer *frameBuffer = frameBufferQueue_.front();
+        memmove(fTo, frameBuffer->data, frameBuffer->size);
+        fFrameSize = frameBuffer->size;
+        fNumTruncatedBytes = frameBuffer->truncatedSize;
+        frameBufferQueue_.pop();
+        frameBufferPool_.free(frameBuffer);
+    } else {
+        cameraDevice_->Capture();
     }
 
-    memmove(fTo, buf, frameSize);
-    fFrameSize = frameSize;
-    fNumTruncatedBytes = truncatedSize;
-
     // notify  
-    afterGetting(this); 
+    afterGetting(this);
 }
 
-unsigned int CameraFramedSource::maxFrameSize() const
-{
+unsigned int CameraFramedSource::maxFrameSize() const {
     return MAX_FRAME_SIZE;
 }
 
+void CameraFramedSource::CameraCapture(void *param, void *packet, size_t bytes) {
+    CameraFramedSource *framedSource = (CameraFramedSource *) param;
+    int frameSize = 0, truncatedSize = 0;
 
-
-
+    FrameBuffer *frameBuffer = framedSource->frameBufferPool_.malloc();
+    if (bytes > MAX_FRAME_SIZE) {
+        frameSize = MAX_FRAME_SIZE;
+        truncatedSize = bytes - MAX_FRAME_SIZE;
+    } else {
+        frameSize = bytes;
+        truncatedSize = 0;
+    }
+    memcpy(frameBuffer->data, packet, frameSize);
+    frameBuffer->size = frameSize;
+    frameBuffer->truncatedSize = truncatedSize;
+    framedSource->frameBufferQueue_.push(frameBuffer);
+}
